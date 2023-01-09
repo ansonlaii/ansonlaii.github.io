@@ -1,0 +1,177 @@
+---
+title: "final proj code/structure"
+author: "Anson Lai"
+date: "11/04/2021"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r}
+library(astsa)
+par(mfrow=c(1,2))
+plot.ts(salmon, ylab = "Export Price($/KG)", main ="Monthly Export Price of Salmon", col = "blue")
+acf(salmon, 48)
+```
+- There appears to be an upward trend in the export price of salmon series which needs to be removed. Also, we can see from the ACF plot that the lag decays slowly to 0 indicating that differencing may be needed. So we will take the first difference to remove the trend.
+
+- The data does not seem to have increasing variance over time. The sudden ups and downs are due to the seasonality of the export price of salmon. The season for catching Norwegian salmon is usually in the summer since the salmon is usually the biggest at this time. Competition to catch this fish in summer will drive the price up which explains the seasonality component of salmon price.
+
+```{r}
+
+diff_sal <- diff(salmon)
+
+plot.ts(diff_sal)
+
+acf2(diff_sal, main = "first difference of salmon price")
+
+```
+
+- After detrending the data by taking the first difference, I plotted the ACF of the first difference series to show the seasonal component. We can see from the ACF plot that there is significant lag every 6 months since the black line exceeds the blue dotted line. The significant peaks of the lag tend to occur every year and the significant troughs also repeats itself after a year. Since seasonal fluctuations occur every 12 months, a seasonal difference of 12 months should be applied.
+
+After applying the first ordinary difference and then the 12 month seasonal difference, we are ready to determine the order of PQ and pq (non seasonal).
+```{r}
+
+dd_sal <- diff(diff_sal, 12)
+
+plot.ts(dd_sal, main = "Final Series (ordinary diff + seasonal diff)")
+
+acf2(dd_sal, main = "ACF/PACF for Series in Figure 3")
+
+```
+
+**IDENTIFYING ORDERS OF SARIMA MODEL**
+
+
+We have previously defined d = 1 and D = 1. We took first ordinary difference and also took a seasonal difference of 12 months which is represented by D = 1.
+
+First Proposed Model:
+
+Identifying P and Q for the seasonal component: It appears that the ACF is cutting off at lag 12 which is 1*s where s = 12 and the PACF is tailing off at lags 12k (k = 1,2,3,..). This implies a seasonal MA(1) model which means P = 0 and Q = 1. S = 12 as previously found.
+
+Identifying p and q for the non-seasonal component: We see from the PACF at lower lags that there is a cutoff at lag 1. Also from the ACF, there is a cutoff at lag 1. This means we can propose an AR(1) model or MA(1) model for the non-seasonal component. Since Salmon prices are seasonal which means there is a period where the price is high and low afterwards, an AR(1) model would make more sense since previous prices have a direct effect on the future prices. So we propose an AR(1) model for the non-seasonal component.
+
+Putting the seasonal and non-seasonal proposed model together, we propose a
+ARIMA(p=1, d=1, q=0)X(P=0, D=1, Q=1)[S=12] model for the export price of salmon.
+
+Second Proposed Model:
+
+Identifying P and Q for the seasonal component: It appears that the PACF cuts off at lag 24 which is 2*s where s = 12. The ACF is tailing off at lags 12k (k = 1,2,3,..). This implies a seasonal AR(2) model which means P = 2 and Q = 0.
+
+Identifying the p and q for non-seasonal component: Before we proposed an AR(1) model since the PACF at lower lag cuts off at lag 1. Now we propose the alternative MA(1) model since it can also be argued that the ACF cuts off at lag 1.
+
+So the second proposed model is ARIMA(p=0, d=1, q=1)X(P=2, D=1, Q=0)[S=12]
+
+Now we estimate the parameters of the 2 proposed models:
+
+```{r}
+sarima(salmon, 1,1,0, 0,1,1,12) ## *****
+
+sarima(salmon, 0,1,1, 2,1,0,12)
+```
+
+**INTERPRETATION OF PARAMETERS AND ESTIMATES OF PARAMETERS**
+
+For the ARIMA(1,1,0)X(0,1,1)[S=12] model, the AR parameter estimate belonging to the 
+non-seasonal part is 0.2205. The seasonal moving average parameter estimate (labeled sma1) is -0.7958. We can interpret the sma1 parameter as follows: It is the size of the effect on the export price of salmon based on a shock that happened 12 months ago. In this case, the parameter estimate is -0.7958 which means salmon price is affected by quite a bit by large shocks that happened 12 months ago. For example, the sudden emerge of Covid-19 led to many fishing regulation and health concerns which may have affected salmon price a year later. If we write the model out, it is $ (1-\phi B)(1-B-B^{12}+B^{13})x_{t}=w_{t}+\theta w_{t-12}$. As we can see on the right side of the equation, it is easy to interpret the seasonal moving average parameter. But the non-seasonal AR parameter "phi" on the left side is hard to interpret because we get a very complicated expression after expanding. However, we can vaguely think of the non-seasonal AR parameter to be the direct effect on salmon price based on the salmon price one month ago. The AR parameter estimate is 0.2205 which is a small direct effect on salmon export price based on salmon price one month ago. For example, if export price was X last month, the effect on the price this month is 0.2205X. 
+
+For the ARIMA(0,1,1)X(2,1,0)[12] model, the estimate for the non-seasonal MA parameter labeled "ma1" is 0.1609. The estimate for the seasonal AR1 and AR2 parameters are -0.6679 and -0.4837 respectively. The ma1 estimate can be interpreted as the size of the effect on the export price of salmon based on a shock that happened 1 month ago. In this case the "effect" is 0.1609 which is not that big. This is applicable to the export price of salmon because of natural phenomena. For example, natural disasters or new regulations on fishing may affect salmon price for a short period of time and the effect gradually weakens. These random shocks that persist and gradually weakens is best captured by the ma1 parameter. The seasonal AR1 and AR2 parameters play a role in determining the salmon price based on the salmon price 1 and 2 years ago. 2 years because the seasonal part is an AR(2) model and this may be unnecessary since salmon price too long ago may have no effect.
+
+
+**TESTING SIGNIFICANCE OF PARAMETER ESTIMATES**
+
+ARIMA(1,1,0)X(0,1,1)[S=12]: Based on the t table, the p value for both the seasonal MA (sma1) and non-seasonal AR (ar1) parameters are very close to 0. It is less than the significance level of 0.05 so we reject the null hypothesis that the parameters are 0. And conclude that the parameter estimates are statistically significant.
+
+ARIMA(0,1,1)X(2,1,0)[12]: The p value for the non-seasonal MA parameter is 0.0362. The p value for the seasonal AR parameters (sar1 and sar2) is 0. All the parameter estimates are statistically significant because the p value is less than the significance level of 5%. We reject the null hypothesis that the parameters are 0.
+
+So both models proposed have statistically significant parameter estimates which is good.
+
+
+**DIAGNOSTICS FOR THE PROPOSED MODELS**
+
+Diagnostic for ARIMA(1,1,0)X(0,1,1)[S=12]: The standardized residuals plot show no obvious pattern which is indication of independent white noise and that our model fits well. However, there may be outliers exceeding 2 standard deviations in magnitude when what we want is the standardized residuals having magnitude around 1. The ACF plot of the standardized residuals show a significant spike at lag 28 but one is not enough to be significant at 5% level. So there should be very little, if any, departure from the model assumption of uncorrelated residuals. From the normal qq-plot, the assumption that the standardized residuals are normal is quite reasonable since there is little departure from the blue line. There are a few outliers near the tails from the qq plot but overall, we can say the normality assumption is reasonable. We can't claim the residuals are independent because the p value for L-Jung box statistic is significant at lag 36. Since lag 36 is a multiple of the seasonality of 12 months, there may be correlations that our model is not capturing. But our model is not supposed to be perfect anyways.
+
+Diagnostic for ARIMA(0,1,1)X(2,1,0)[12]: The standardized residuals plot have no obvious pattern and again there are a few outliers exceeding 2 standard deviations in magnitude. For this model, the ACF plot of residuals have 2 significant spikes if looked closely which means there are some correlations our model is not capturing. So in this model, since there are 2 significant spikes compared to 1 in the first model, there is more violation of model assumption. Most of the p values of the L-jung box statistic surpass the significance level of 5%, so we reject the null hypothesis that the residuals are independent. The fact that we rejected the null hypothesis that the residuals are independent is indication that the model does not fit too well because a good model will have independent residuals. From the normal QQ-plot, every point seems to lie on the line and there does not appear to be outliers so the normality assumption is satisfied. But this is not really important because from the ACF and p values, this model is not capturing some correlations which is the bigger issue.
+
+**MODEL SELECTION**
+
+As just discussed, the ARIMA(0,1,1)X(2,1,0)[12] model has many significant p values in the L-Jung box statistic so we have to reject the null hypothesis that the residuals are independent. This means the model is failing to capture some auto-correlation, hence the residuals not being independent so we will not choose this model. On the other hand, the ARIMA(1,1,0)X(0,1,1)[S=12] model has p values that are not significant except at lag 36 which is not a big deal since its hard to capture every aspect of salmon price. The BIC value for ARIMA(1,1,0)X(0,1,1)[S=12] is 0.967 which is lower than the BIC for the alternative model. So we select the ARIMA(1,1,0)X(0,1,1)[S=12] model because it is parsimonious compared to the other model. Parsimonious because it is simple with just one seasonal parameter and satisfies most of the model assumptions.
+
+**FORECASTING**
+
+```{r}
+# Forecast the data into future 10 months
+
+pred1 <- sarima.for(salmon, 10, 1,1,0, 0, 1, 1, 12)
+
+# Prediction intervals
+
+month <- c(1:10)
+upper <- pred1$pred + qnorm(0.975) * pred1$se
+
+lower <- pred1$pred - qnorm(0.975) * pred1$se
+
+data.frame("Forecasted Value" = pred1$pred, "Lower Bound" = lower,"Upper Bound" = upper)
+
+
+```
+
+From the forecast result above, salmon export price is expected to decrease slightly during the summer of 2017 and rise back up as 2018 approaches. Overall, salmon price is predicted to increase over the next 10 months with some price drops in between months. The prediction intervals of the forecast is also increasing as time progresses which means there is more uncertainty of salmon price if we look far into the future. This is intuitive since the demand and supply for salmon fluctuates alot during the year and we can even observe from the time series that prices go up and down with no obvious pattern. There are many reasons why the price is so unstable, such as sea lice, algal blooms and other biological factors that can interfere with health concerns. Weather, new policies, and politics can also bring down the price unexpectedly. As a result, its hard to forecast salmon price too far into the future and hence the large prediction intervals.
+
+
+**SPECTRAL ANALYSIS**
+
+```{r}
+salmon_pdg <- mvspec(salmon, log = "no")
+abline(v=1, lty=2)
+abline(v=0.2666667, lty=2)
+abline(v=0.3333333, lty=2)
+## salmon_pdg$details
+## sort(salmon_pdg$spec)
+
+salmon_pdg$freq[4]
+
+salmon_pdg$freq[5]
+
+salmon_pdg$freq[15]
+
+salmon_pdg$spec[4]
+
+salmon_pdg$spec[5]
+
+salmon_pdg$spec[15]
+
+# Construct CI
+
+U = qchisq(.025,2)
+L = qchisq(.975,2)
+
+## 2*salmon_pdg$spec[4]/L
+## 2*salmon_pdg$spec[4]/U
+
+## 2*salmon_pdg$spec[5]/L
+## 2*salmon_pdg$spec[5]/U
+
+## 2*salmon_pdg$spec[15]/L
+## 2*salmon_pdg$spec[15]/U
+```
+Note: The frequency axis is labeled in multiples of 1/12 since salmon is monthly data.
+
+- After performing a periodogram analysis, it is found that the first three predominant frequencies are 0.022225, 0.027775, 0.083333. We take the reciprocal of these numbers and find that the first three predominant periods are 45 months, 36 months, and 12 months. The periodogram x-axis represents multiples of 1/12. So at the value 1 in x-axis, it represents a frequency of 1/12 = 0.083333 which is clearly one of the peaks. It is hard to see from the periodogram, but there are two other peaks at lower frequencies, namely frequency 0.027775 and 0.02225.
+
+- The 95% confidence interval for the spectrum of the predominant period of 45 months is (0.4727028, 68.8742) 
+
+- The 95% confidence interval for the spectrum of the predominant period of 36 months is (0.3171003, 46.20245)
+
+- The 95% confidence interval for the spectrum of the predominant period of 12 months is (0.1646532, 23.99046)
+
+The 95% confidence interval for the predominant period of 45 months is (0.4727, 68.8742) which is very wide so its hard to interpret. However, we see that the lower bound is 0.4727 which is higher than most other periodogram ordinate so this peak is significant. We can also establish significance for the period of 36 months. Since the confidence interval for it is (0.3171, 46.2026), the lower bound of 0.3171 is higher than most other periodogram values so it is also significant.
+
+However, we can't establish significance for the predominant period of 12 months. Its confidence interval is (0.1647, 23.99) which is wide in the first place. But unlike the other two confidence intervals, its lower bound is way too low to establish significance. Some other lower peaks are included in this interval because 0.1647 is not high enough to exclude them which means this peak is not significant.
+
+Combining the results, there appears to be a dominant periodicity of about 36 - 45 months since we were able to establish significance for those periods.
+
+
+
+
+
