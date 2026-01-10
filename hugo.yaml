@@ -1,6 +1,6 @@
-baseURL: https://example.org/
+baseURL: https://ansonlai.github.io/
 languageCode: en-us
-title: My New Hugo Site
+title: Anson Lai
 theme: ["PaperMod"]
 caches:
   images:
