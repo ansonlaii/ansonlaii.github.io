@@ -1,6 +1,6 @@
-baseURL: https://ansonlai.github.io/
+baseURL: https://ansonlaii.github.io/
 languageCode: en-us
-title: Anson Lai
+title: Anson
 theme: ["PaperMod"]
 caches:
   images:
