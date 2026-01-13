@@ -5,3 +5,25 @@ theme: ["PaperMod"]
 caches:
   images:
     dir: :cacheDir/images
+
+params:
+  homeInfoParams:
+    Title: Hi there wave
+    Content: Can be Info, links, about...
+
+  socialIcons: # optional
+    - name: "<platform>"
+      url: "<link>"
+    - name: "<platform 2>"
+      url: "<link2>"
+
+menu:
+  main:
+    - name: About
+      weight: 5
+    - name: Projects
+      weight: 5
+    - name: Math
+      weight: 10
+    - name: Search
+      weight: 10
