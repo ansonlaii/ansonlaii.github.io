@@ -8,14 +8,21 @@ caches:
 
 params:
   homeInfoParams:
-    Title: Hi there wave
-    Content: Can be Info, links, about...
+    Title: Hi there! 👋
+    Content: Welcome to my blog where I build things and write about them.
+    imageUrl: "/images/torus.jpeg"
+    imageTitle: "Profile image"
 
   socialIcons: # optional
-    - name: "<platform>"
+    - name: "github"
+      title: "Github"
       url: "<link>"
-    - name: "<platform 2>"
+    - name: "linkedin"
       url: "<link2>"
+    - name: "email"
+      url: "<link3>"
+    - name: "discord"
+      url: "<link4>"
 
 menu:
   main:
