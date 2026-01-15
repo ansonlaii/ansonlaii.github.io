@@ -29,5 +29,7 @@ menu:
       weight: 5
     - name: Math
       weight: 10
+    - name: Resume
+      weight: 10
     - name: Search
       weight: 10
