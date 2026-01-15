@@ -15,14 +15,11 @@ params:
 
   socialIcons: # optional
     - name: "github"
-      title: "Github"
-      url: "<link>"
+      url: "https://github.com/ansonlaii"
     - name: "linkedin"
       url: "<link2>"
     - name: "email"
       url: "<link3>"
-    - name: "discord"
-      url: "<link4>"
 
 menu:
   main:
